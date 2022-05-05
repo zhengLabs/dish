@@ -1,72 +1,62 @@
-//
-// Created by 七斗米 on 2021/5/20.
-//
-
-#include "analysis.h"
-#include "hgraph.h"
-#include "unistd.h"
-#include "util.h"
+#include <analysis.h>
+#include <hgraph.h>
+#include <unistd.h>
+#include <util.h>
 int RS_m;
 int RS_n;
 
-auto kc = KahyparConfig("../kahypar.exe", "0.3", "direct", "cut", "../kahypar/config/cut_kKaHyPar_sea20.ini");
+const string ROOTPATH = "/Users/joseph/work_dir/cpp_dir/dish/";
+const int TIMESTAMP = 20;
+auto kc = KahyparConfig(ROOTPATH + "kahypar.exe",
+                        "0.3",
+                        "direct",
+                        "cut",
+                        ROOTPATH + "cut_kKaHyPar_sea20.ini");
 
 int main(int argc, char *argv[]) {
 
-    int time_stamp;
-    double analysisRatio;
     int hyperGraphVNums = 0;
     string IOfile;
+    vector<string> sumVec; // Logical Block Address
+    vector<string> readVec;// LBAs for read requests
+    vector<vector<string>> eachTimestampVec;
+    string hyperGraph = "";
+    string partitionFile = "";
 
-    // 参数判断
-    if (!judgeParam(argc, argv, RS_m, RS_n, time_stamp, analysisRatio, IOfile))
+    if (!judgeParam(argc, argv, RS_m, RS_n, IOfile))
         exit(-1);
 
-    // 生成超图
-    string hyperGraph = generatorHyperGraph(IOfile, RS_m, analysisRatio, hyperGraphVNums);
-    if (hyperGraph == "") {
+    processIOfile(IOfile, TIMESTAMP, sumVec, readVec, eachTimestampVec);
+    if (sumVec.empty()) {
+        cout << "ERROR: process file " << IOfile << " failed !" << endl;
         exit(-1);
     }
 
-    // 超图分区
-    string partationFile = hyperGraphPartation(kc, hyperGraph, hyperGraphVNums, RS_m);
+    // Generating hypergraphs based on access sequences
+    generatorHyperGraph(sumVec, IOfile, RS_m, RS_n, hyperGraphVNums, hyperGraph);
+    if (hyperGraph == "") {
+        cout << "ERROR: HyperGraph file created faild!" << endl;
+        exit(-1);
+    }
 
+    // Partitioning for hypergraph
+    hyperGraphpartition(kc, hyperGraph, hyperGraphVNums, RS_m, partitionFile);
+    if (partitionFile == "") {
+        cout << "ERROR: HyperGraph partition file created faild!" << endl;
+        exit(-1);
+    }
+    cout << "create HyperGraph partition file : " << partitionFile << endl;
 
-    // 预处理访问序列
-    vector<string> sumVec; // 访问序列中的LBA集合
-    vector<string> readVec;// 访问序列中read请求的LBA集合
-    processIOfile(IOfile, sumVec, readVec);
+    // Organising stripe based on hypergraph partition
+    vector<int> hgVec;// read processpartitionFile to vector
+    int numsOfpartition = processpartitionFile(partitionFile, hgVec);
+    if (numsOfpartition == 1) {
+        cout << "ERROR: process partition file failed ! " << endl;
+        exit(-1);
+    };
 
-
-    // // 不同条带组织算法
-    // cout << "analysisRatio :" << analysisRatio << endl;
-    // analysisBSO(sumVec, readVec, analysisRatio, time_stamp);
-    // analysisCASO(sumVec, readVec, analysisRatio, time_stamp);
-
-    // // DISH
-    // vector<int> hgVec;
-    // int n = 0;// n是分区数，由于是从分区0开始，所以传入DISH的数就是n+1
-
-    // string line2;
-    // if (hGraph) {
-    //     while (getline(hGraph, line2)) {
-    //         if (line2 != " ") {
-    //             hgVec.push_back(stoi(line2));
-    //             if (stoi(line2) > n) {
-    //                 n = stoi(line2);
-    //             }
-    //         }
-    //     }
-    //     cout << "被分割之后的超图处理完毕！" << endl;
-    // } else {
-    //     cout << "no such hyperGraph partation file" << endl;
-    // }
-
-    // // DISH 超图分割算法
-    // analysisDISH(sumVec, hgVec, n + 1, readVec, analysisRatio,
-    //              time_stamp);
-
-    // input.close();
-    // hGraph.close();
+    analysisDISH(sumVec, hgVec, numsOfpartition, readVec, eachTimestampVec);// DISH
+    analysisBSO(sumVec, readVec, eachTimestampVec);                         // BSO Baseline Strip Organisation
+    analysisCASO(sumVec, readVec, eachTimestampVec);                        // CASO
     return 0;
 }
