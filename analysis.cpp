@@ -27,7 +27,7 @@ void processIOfile(string IOfile,
     while (getline(input, line)) {
         vector<string> tmp = split(line, divider);
         if (tmp.size() < 5) continue;
-        sumVec.push_back(tmp[4]);
+        if (tmp[3] == "Write") sumVec.push_back(tmp[4]);
         if (tmp[3] == "Read") readVec.push_back(tmp[4]);
     }
     getEachTimestampVec(sumVec, time_stamp, eachTimestampVec);

@@ -46,6 +46,7 @@ string writeToHyperGraph(const vector<string> &sum_vec, string traceName,
             for (size_t j = 0; j < edgeVec[i].size(); j++) {
                 count += static_cast<int>(temp.find(edgeVec[i][j]) != temp.end());
             }
+            //对于每一个时间窗口的数据块子集，在所有超边中出现的个数之和作为超边权重
             edgeWeightVec[i] += ((count - 1) * 2) > 0 ? (count - 1) * 2 : 0;
         }
         start = end + 1;
